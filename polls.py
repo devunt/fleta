@@ -9,10 +9,9 @@ from html.parser import HTMLParser
 import lxml.html
 
 
-RE_NOTICE_TITLE = re.compile(r'\[(.+?)] (.+)')
 RE_NOTICE_CONTENT = re.compile(r'<td class="view_notice_area" id="view_area">(.+)</td>')
 RE_PATCH_ACCEPT = re.compile(r'patch_accept=(0|1)')
-RE_MAIN_VERSION = re.compile(r'main_version=(.+?)')
+RE_MAIN_VERSION = re.compile(r'main_version=(.+)')
 
 
 def get_mabinogi_notices():
@@ -31,23 +30,22 @@ def get_mabinogi_notice(nid):
     url = 'http://mabinogi.nexon.com/C3/News/Notice.asp?mode=view&ReadSn={0}'.format(nid)
     res = requests.get(url).content.decode('euc-kr')
     page = lxml.html.fromstring(res)
-    title = page.xpath('//*[@id="subContents"]/div[3]/div[1]/div[1]/span/@title')[0]
+    category = page.xpath('//*[@id="subContents"]/div[3]/div[1]/div[1]/img/@alt')[0]
+    title = page.xpath('//*[@id="subContents"]/div[3]/div[1]/div[1]/span/text()')[0]
     author = page.xpath('//*[@id="subContents"]/div[3]/div[2]/div/font/text()')[0]
     content = page.xpath('//*[@id="view_area"]')[0]
     content = HTMLParser().unescape(lxml.html.tostring(content).decode())
 
-    m = RE_NOTICE_TITLE.match(title)
-    category = m.group(1)
-    title = m.group(2)
-
-    return {
-        'nid': nid,
+    ret = {
         'category': category,
         'title': title,
         'author': author,
         'content': content,
         'url': url,
     }
+    ret = {k: v.strip() for k, v in ret.items()}
+    ret['nid'] = nid
+    return ret
 
 
 def get_patch_txt():
@@ -57,4 +55,7 @@ def get_patch_txt():
     m = RE_MAIN_VERSION.search(res)
     main_version = m.group(1)
 
-    return (patch_accept, main_version)
+    return {
+        'patch_accept': patch_accept,
+        'main_version': main_version,
+    }

@@ -27,11 +27,13 @@ if __name__ != '__main__':
 
 class MabiPoller(object):
     running = False
+    patch_txt = dict()
     notice_category_colors = {
         '공지': '04',
         '점검': '07',
-        '샵': '12',
         '행사': '12',
+        '정보': '13',
+        '샵': '12',
     }
 
     def start(self, raise_exc=True):
@@ -49,29 +51,36 @@ class MabiPoller(object):
     def poll(self):
         if not self.running:
             return
-        cur_notices = polls.get_mabinogi_notices()
-        last_notice = sorted(cur_notices.keys())[0]
-        notice_rows = session.query(MabiNotice).options(load_only('nid', 'short_title')).filter(MabiNotice.nid >= last_notice).order_by(MabiNotice.id.desc()).limit(10).all()
-        notices = {notice.nid: notice.short_title for notice in notice_rows}
+        web_notices = polls.get_mabinogi_notices()
+        oldest_notice_nid = sorted(web_notices.keys())[0]
+        notice_rows = session.query(MabiNotice).options(load_only('nid', 'short_title')).filter(MabiNotice.nid >= oldest_notice_nid).order_by(MabiNotice.id.desc()).limit(10).all()
+        db_notices = {notice.nid: notice.short_title for notice in notice_rows}
 
-        for nid, title in cur_notices.items():
-            continue
+        new_notices = sorted(set(web_notices.items()) - set(db_notices.items()))
+
+        for nid, title in web_notices.items():
             if not any(x in title for x in ('수정', '추가')):
                 continue
-            notice = polls.get_mabinogi_notice(nid)
-            #session.query(MabiNotice).
-            #notice['content']
+            web_notice = polls.get_mabinogi_notice(nid)
+            db_notice = session.query(MabiNotice).filter(MabiNotice.nid == nid).first()
+            if web_notice['content'] != db_notice.content:
+                new_notices.append((nid, title))
 
-        new_notices = sorted(set(cur_notices.items()) - set(notices.items()))
         for nid, title in new_notices:
-            notice = polls.get_mabinogi_notice(nid)
-            notice_row = MabiNotice(short_title=title, **notice)
-            session.add(notice_row)
+            web_notice = polls.get_mabinogi_notice(nid)
+            db_notice = MabiNotice(short_title=title, **web_notice)
+            session.add(db_notice)
             session.commit()
-            msg = '## \003{0}({category})\x0f \002[{title}]\x0f {url}'.format(self.notice_category_colors[notice['category']], **notice)
+            msg = '## \003{0}({category})\x0f \002[{title}]\x0f {url}'.format(self.notice_category_colors[web_notice['category']], **web_notice)
             broadcast(msg)
 
-        patch_accept, main_version = polls.get_patch_txt()
+        patch_txt = polls.get_patch_txt()
+        for k, v in patch_txt.items():
+            c = self.patch_txt.get(k, False)
+            if v != c:
+                if c:
+                    broadcast('[patch.txt] {0} 값이 변경되었습니다 ({1} -> {2})'.format(k, c, v))
+                self.patch_txt[k] = v
 
 
 class FletaIRCHandler(bot.IRCHandler):
