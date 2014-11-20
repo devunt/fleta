@@ -128,8 +128,6 @@ class FletaIRCHandler(bot.IRCHandler):
             elif message == 'stoppolling':
                 poller.stop()
                 self.say(channel, 'polling stopped.')
-            elif message == 'broadcast':
-                broadcast('test broadcast')
         elif message.startswith('{0}실시간'.format(config.cmd_prefix)):
             f = get_channels_query(self._server_name).filter(Channel.name == channel).first()
             v = not f.use_broadcast
