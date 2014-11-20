@@ -15,7 +15,7 @@ RE_MAIN_VERSION = re.compile(r'main_version=(.+)')
 
 
 def get_mabinogi_notices():
-    res = requests.get('http://mabinogi.nexon.com/C3/News/Notice.asp').content.decode('euc-kr')
+    res = requests.get('http://mabinogi.nexon.com/C3/News/Notice.asp').text
     page = lxml.html.fromstring(res)
     notice_nodes = page.xpath('//*[@id="subContents"]/div[3]/table/tr[@class="strong_0"]')
     notices = dict()
@@ -28,7 +28,7 @@ def get_mabinogi_notices():
 
 def get_mabinogi_notice(nid):
     url = 'http://mabinogi.nexon.com/C3/News/Notice.asp?mode=view&ReadSn={0}'.format(nid)
-    res = requests.get(url).content.decode('euc-kr')
+    res = requests.get(url).text
     page = lxml.html.fromstring(res)
     category = page.xpath('//*[@id="subContents"]/div[3]/div[1]/div[1]/img/@alt')[0]
     title = page.xpath('//*[@id="subContents"]/div[3]/div[1]/div[1]/span/text()')[0]
@@ -49,7 +49,8 @@ def get_mabinogi_notice(nid):
 
 
 def get_patch_txt():
-    res = requests.get('http://211.218.233.238/patch/patch.txt').content.decode()
+    res = requests.get('http://211.218.233.238/patch/patch.txt').text
+    #res = requests.get('http://211.218.233.238/patch/patch_test.txt').text
     m = RE_PATCH_ACCEPT.search(res)
     patch_accept = m.group(1)
     m = RE_MAIN_VERSION.search(res)
